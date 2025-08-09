@@ -19,9 +19,6 @@ final class ReservationService implements IReservationService
     public function createReservation(int $userId, int $bookId, int $quantity): Reservation
     {
         return DB::transaction(function () use ($userId, $bookId, $quantity) {
-            // for ensure the isolation level is read commited
-            DB::statement('SET TRANSACTION ISOLATION LEVEL READ COMMITTED');
-
             /** @var Book $book */
             $book = Book::where('id', $bookId)->lockForUpdate()->firstOrFail();
 
@@ -53,5 +50,35 @@ final class ReservationService implements IReservationService
 
             return $reservation;
         }, 5);
+    }
+
+    public function expirePendingReservations(): int
+    {
+        $now = Carbon::now();
+
+        $expiredReservations = Reservation::where('status', 'pending')
+            ->where('expires_at', '<=', $now)
+            ->get(['id', 'book_id', 'quantity']);
+
+        if ($expiredReservations->isEmpty()) {
+            return 0;
+        }
+
+        DB::transaction(function () use ($expiredReservations) {
+            Reservation::whereIn('id', $expiredReservations->pluck('id'))
+                ->update([
+                    'status' => 'cancelled'
+                ]);
+
+            $bookQuantities = $expiredReservations
+                ->groupBy('book_id')
+                ->map(fn($group) => $group->sum('quantity'));
+
+            foreach ($bookQuantities as $bookId => $quantityToRestore) {
+                Book::where('id', $bookId)->increment('stock', $quantityToRestore);
+            }
+        });
+
+        return $expiredReservations->count();
     }
 }

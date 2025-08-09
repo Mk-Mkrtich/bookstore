@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use App\Http\Requests\CreateReservationRequest;
 use App\Service\IReservationService;
 use Illuminate\Http\JsonResponse;
@@ -12,24 +12,41 @@ class ReservationController extends Controller
     public function __construct(
         private IReservationService $service
     )
-    {
-        $this->middleware('auth:sanctum');
-    }
+    {}
 
     public function store(CreateReservationRequest $request): JsonResponse
     {
         $user = $request->user();
+        try {
+            $reservation = $this->service->createReservation(
+                $user->id,
+                $request->input('book_id'),
+                $request->input('quantity')
+            );
 
-        $reservation = $this->service->createReservation(
-            $user->id,
-            $request->input('book_id'),
-            $request->input('quantity')
-        );
+            return response()->json([
+                'success' => true,
+                'reservation' => $reservation,
+            ], 201);
 
-        return response()->json([
-            'success' => true,
-            'reservation' => $reservation,
-        ], 201);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Book not found.',
+            ], 404);
+
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unexpected error occurred.',
+            ], 500);
+        }
     }
 
     public function myReservations(): JsonResponse
