@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\Service\IReservationsAdmin;
+use App\Service\IReservationService;
+use App\Service\IReservationsExpired;
+use App\Service\ReservationService;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -12,8 +16,16 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(
-            \App\Service\IReservationService::class,
-            \App\Service\ReservationService::class
+            IReservationService::class,
+            ReservationService::class
+        );
+        $this->app->bind(
+            IReservationsExpired::class,
+            ReservationService::class
+        );
+        $this->app->bind(
+            IReservationsAdmin::class,
+            ReservationService::class
         );
     }
 

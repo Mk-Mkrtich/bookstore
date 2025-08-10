@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Service\ReservationService;
+use App\Service\IReservationsExpired;
 use Illuminate\Console\Command;
 
 class ExpireReservations extends Command
@@ -24,7 +24,7 @@ class ExpireReservations extends Command
     /**
      * Execute the console command.
      */
-    public function handle(ReservationService $service)
+    public function handle(IReservationsExpired $service)
     {
         $count = $service->expirePendingReservations();
         $this->info("Expired {$count} reservations.");
